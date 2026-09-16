@@ -12,7 +12,7 @@ DMM1908 = serial.Serial(
     timeout=1
 )
 
-DMM1908.write("VDC 30V\n".encode())
+DMM1908.write("VDC 10V\n".encode())
 DMM1908.write("IDC2 10A\n".encode())
 
 DMM1908.write("Read?\n".encode())
