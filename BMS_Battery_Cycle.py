@@ -3,10 +3,103 @@ import time
 import re
 from kelctl import KELSerial
 from datetime import datetime
+import sys
+import glob
+
+def serial_ports():
+    """ Lists serial port names
+
+        :raises EnvironmentError:
+            On unsupported or unknown platforms
+        :returns:
+            A list of the serial ports available on the system
+    """
+    if sys.platform.startswith('win'):
+        ports = ['COM%s' % (i + 1) for i in range(256)]
+    elif sys.platform.startswith('linux') or sys.platform.startswith('cygwin'):
+        # this excludes your current terminal "/dev/tty"
+        ports = glob.glob('/dev/tty[A-Za-z]*')
+    elif sys.platform.startswith('darwin'):
+        ports = glob.glob('/dev/tty.*')
+    else:
+        raise EnvironmentError('Unsupported platform')
+
+    result = []
+    for port in ports:
+        try:
+            s = serial.Serial(port)
+            s.close()
+            result.append(port)
+        except (OSError, serial.SerialException):
+            pass
+    return result
+
+devices = serial_ports()
+dmm_port = ''
+psu_port = ''
+load_port = ''
+bms_port = ''
+
+print(devices)
+
+for device in devices:
+    time.sleep(1)
+
+    temp_ser = serial.Serial(
+        port=device,  # Replace with your serial port (e.g., 'COM1' on Windows)
+        baudrate=9600,
+        bytesize=serial.EIGHTBITS,
+        parity=serial.PARITY_NONE,
+        stopbits=serial.STOPBITS_ONE,
+        xonxoff=True,  # Enable XON/XOFF flow control
+        timeout=1
+    )
+
+
+    message = "*IDN?\n"
+    temp_ser.write(message.encode())
+
+    time.sleep(1)
+
+    if temp_ser.in_waiting > 0:
+        received_data = temp_ser.read(temp_ser.in_waiting).decode()
+        #print(f"Received: {received_data.strip()}")
+        if "1908" in received_data:
+            dmm_port = device
+        if "CPX400SP" in received_data:
+            psu_port = device
+        if "RS-KEL103" in received_data:
+            load_port = device
+        if "......" in received_data:
+            bms_port = device
+    else:
+        print("No data received.")
+
+    temp_ser.close()
+
+if dmm_port != '':
+    print("1908 DMM at serial port: " + dmm_port)
+else:
+    print("No DMM found")
+
+if psu_port != '':
+    print("CXP400SP PSU at serial port: " + psu_port)
+else:
+    print("No PSU found")
+
+if dmm_port != '':
+    print("Kel103 Loadbank at serial port: " + load_port)
+else:
+    print("No Loadbank found")
+
+if dmm_port != '':
+    print("Battery BMS at serial port: " + bms_port)
+else:
+    print("No BMS found")
 
 # Configure the serial port with XON/XOFF enabled
 bms = serial.Serial(
-    port='COM15',  # Replace with your serial port (e.g., 'COM1' on Windows)
+    port=bms_port,  # Replace with your serial port (e.g., 'COM1' on Windows)
     baudrate=9600,
     bytesize=serial.EIGHTBITS,
     parity=serial.PARITY_NONE,
@@ -16,7 +109,7 @@ bms = serial.Serial(
 )
 
 cpx400 = serial.Serial(
-    port='COM3',  # Replace with your serial port (e.g., 'COM1' on Windows)
+    port=psu_port,  # Replace with your serial port (e.g., 'COM1' on Windows)
     baudrate=9600,
     bytesize=serial.EIGHTBITS,
     parity=serial.PARITY_NONE,
@@ -26,27 +119,12 @@ cpx400 = serial.Serial(
 )
 cpx400.write("OP1 0\n".encode())
 
-kel103 = KELSerial('COM5')
+kel103 = KELSerial(load_port)
 kel103.input.off()
 
 measurement_pattern = re.compile('^\\[(\\d{4}\\.\\d, ){11}(\\d{4}\\.\\d)\\] [+-]\\d{6}\\.\\d$')
 
-v_max = 3650 #max Charge voltage
-v_min = 2500 #Discharge cutoff voltage
-v_nom = 3200 #nominal voltage
 
-cell_lim_high = 3550
-cell_lim_low = 2850
-
-c_nom = 3.3 #intended capacity in Ah
-mah_log = 3300
-
-ccc_i = c_nom
-ccd_i = c_nom
-
-i_cont = c_nom*3 #continuous max current
-i_puls = 10 #pulse max current 5s
-i_end = 0.01*c_nom #current at the end of a CV charge
 
 def write_bms_line(s: str, filename, start, mode, psu_v, psu_i, load_v, load_i):
     global cell_lim_high, cell_lim_low
@@ -244,7 +322,7 @@ def bms_balancing(s: str):
 BMS_mainloop = 0
 testing = 1
 
-bms_filename = "./Data/bms_rest_bal.csv"
+bms_filename = "./Data/Second_Battery_Cycle_160926.csv"
 bms_file = open(bms_filename, "w")
 bms_file.write("time,elapsed,mode,PSU V,PSU I,Load V,Load I,mV1,mV2,mV3,mV4,mV5,mV6,mV7,mV8,mV9,mV10,mV11,mV12,mA\n")
 bms_file.close()
@@ -252,6 +330,23 @@ bms_file.close()
 msg_in = bms.read(bms.in_waiting).decode().strip()
 message = "s\n"
 bms.write(message.encode())
+
+v_max = 3650 #max Charge voltage
+v_min = 2500 #Discharge cutoff voltage
+v_nom = 3200 #nominal voltage
+
+cell_lim_high = 3550
+cell_lim_low = 2850
+
+c_nom = 3.3 #intended capacity in Ah
+mah_log = 3300
+
+ccc_i = c_nom/2
+ccd_i = c_nom/2
+
+i_cont = c_nom*3 #continuous max current
+i_puls = 10 #pulse max current 5s
+i_end = 0.01*c_nom #current at the end of a CV charge
 
 while(testing):
 
