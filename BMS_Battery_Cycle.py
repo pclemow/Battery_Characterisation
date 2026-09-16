@@ -259,14 +259,14 @@ while(testing):
 
     if BMS_mainloop == 1:
 
-        #print("Entering CC charge phase")
-        #cccv_charge(ccc_i,1, bms_filename)
-        #print("\nDone with CC charge")
+        print("Entering CC charge phase")
+        cccv_charge(ccc_i,1, bms_filename)
+        print("\nDone with CC charge")
         print("Resting")
         rest_battery(1800,1, bms_filename)
-        #print("\nEntering CC discharge phase")
-        #cc_discharge(ccd_i,1, bms_filename)
-        #print("\nDone with CC discharge")
+        print("\nEntering CC discharge phase")
+        cc_discharge(ccd_i,1, bms_filename)
+        print("\nDone with CC discharge")
 
         testing = 0
 
