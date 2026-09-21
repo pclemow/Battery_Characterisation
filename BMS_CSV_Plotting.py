@@ -2,8 +2,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 # File path
-csv_path = "./Data/bms_discharge_05.csv"
-out_png = "./Data/bms_cells_plot.png"
+csv_path = "./Battery_Full_Charge_170926.csv"
+out_png = "./bms_cells_plot.png"
 
 # Read CSV
 try:
@@ -29,7 +29,7 @@ if missing:
     raise SystemExit(f"Missing expected voltage columns: {missing}")
 
 # Plot
-plt.style.use("seaborn-darkgrid")
+#plt.style.use("seaborn-darkgrid")
 fig, ax = plt.subplots(figsize=(14, 7))
 
 for col in voltage_cols:

@@ -87,12 +87,12 @@ if psu_port != '':
 else:
     print("No PSU found")
 
-if dmm_port != '':
+if load_port != '':
     print("Kel103 Loadbank at serial port: " + load_port)
 else:
     print("No Loadbank found")
 
-if dmm_port != '':
+if bms_port != '':
     print("Battery BMS at serial port: " + bms_port)
 else:
     print("No BMS found")
@@ -122,11 +122,24 @@ cpx400.write("OP1 0\n".encode())
 kel103 = KELSerial(load_port)
 kel103.input.off()
 
+DMM1908 = serial.Serial(
+    port='COM8',  # Replace with your serial port (e.g., 'COM1' on Windows)
+    baudrate=9600,
+    bytesize=serial.EIGHTBITS,
+    parity=serial.PARITY_NONE,
+    stopbits=serial.STOPBITS_ONE,
+    xonxoff=True,  # Enable XON/XOFF flow control
+    timeout=1
+)
+
+DMM1908.write("VDC 10V\n".encode())
+DMM1908.write("IDC2 10A\n".encode())
+
 measurement_pattern = re.compile('^\\[(\\d{4}\\.\\d, ){11}(\\d{4}\\.\\d)\\] [+-]\\d{6}\\.\\d$')
 
 
 
-def write_bms_line(s: str, filename, start, mode, psu_v, psu_i, load_v, load_i):
+def write_bms_line(s: str, filename, start, mode, psu_v, psu_i, load_v, load_i, dcc, dmm_v, dmm_i):
     global cell_lim_high, cell_lim_low
     # Split into the list part and the current part
     list_part, current_part = s.split("]")
@@ -141,7 +154,7 @@ def write_bms_line(s: str, filename, start, mode, psu_v, psu_i, load_v, load_i):
 
     # Write to CSV
     cell_count = 1
-    with open(filename, "a") as bmsfile: # "time,elapsed,mode,PSU V,PSU I,Load V,Load I,mV1,mV2,mV3,mV4,mV5,mV6,mV7,mV8,mV9,mV10,mV11,mV12,mA\n"
+    with open(filename, "a") as bmsfile: # "time,elapsed,mode,PSU V,PSU I,Load V,Load I,mV1,mV2,mV3,mV4,mV5,mV6,mV7,mV8,mV9,mV10,mV11,mV12,mA,dcc,dmm_v,dmm_i\n"
         timenow = datetime.now().strftime("%H:%M:%S")
 
         elapsed_seconds = int((datetime.now() - start).total_seconds())
@@ -156,7 +169,9 @@ def write_bms_line(s: str, filename, start, mode, psu_v, psu_i, load_v, load_i):
             elif float(voltage) < cell_lim_low:
                 bms_stop += 2 ** (cell_count - 1)
 
-        bmsfile.write(current)
+        bmsfile.write(current + ',')
+        bmsfile.write(dcc + ',')
+        bmsfile.write(dmm_v + ',' + dmm_i)
         bmsfile.write("\n")
 
     return bms_stop
@@ -180,6 +195,11 @@ def cccv_charge(ccc_iset, balancing, filename):
         ccc_message = "m\n"
         bms.write(ccc_message.encode())
         time.sleep(1)
+
+        DMM1908.write("Read?\n".encode())
+
+        dmm_reading = DMM1908.read(DMM1908.in_waiting).decode()
+
         if bms.in_waiting > 0:
             ccc_msg_in = bms.read(bms.in_waiting).decode()
             msg = ccc_msg_in.strip().split("\r\n")[0]
@@ -194,7 +214,7 @@ def cccv_charge(ccc_iset, balancing, filename):
                         bms.write(("dcc {}\n".format(dcc)).encode())
                         bal_count = 0
                     print(" {}".format(dcc), end="")
-                stop_function = write_bms_line(msg.strip(), filename, ccc_start, mode, psu_v, psu_i, load_v, load_i)
+                stop_function = write_bms_line(msg.strip(), filename, ccc_start, mode, psu_v, psu_i, load_v, load_i, dcc, dmm_v, dmm_i)
             elif "Ready" in msg_in:
                 stop_function = 0
                 # print(msg_in)
@@ -238,7 +258,7 @@ def cc_discharge(ccd_iset, balancing, filename):
                         bms.write(("dcc {}\n".format(dcc)).encode())
                         bal_count = 0
                     print(" {}".format(dcc), end="")
-                stop_function = write_bms_line(msg.strip(), filename, ccd_start, mode, psu_v, psu_i, load_v, load_i)
+                stop_function = write_bms_line(msg.strip(), filename, ccd_start, mode, psu_v, psu_i, load_v, load_i, dcc)
             elif "Ready" in msg_in:
                 #print(msg_in)
                 stop_function = 0
@@ -279,7 +299,7 @@ def rest_battery(rest_time, balancing, filename):
                         bms.write(("dcc {}\n".format(dcc)).encode())
                         bal_count = 0
                     print(" {}".format(dcc), end="")
-                stop_function = write_bms_line(msg.strip(), filename, rest_start, mode, psu_v, psu_i, load_v, load_i)
+                stop_function = write_bms_line(msg.strip(), filename, rest_start, mode, psu_v, psu_i, load_v, load_i, dcc)
             elif "Ready" in msg_in:
                 stop_function = 0
                 # print(msg_in)
@@ -321,10 +341,10 @@ def bms_balancing(s: str):
 
 BMS_mainloop = 0
 testing = 1
-
-bms_filename = "./Data/Battery_Drain_170926.csv"
+filetime = datetime.now().strftime("%d%m%y_%H%M")
+bms_filename = "./Data/Battery_Test_" + filetime + ".csv"
 bms_file = open(bms_filename, "w")
-bms_file.write("time,elapsed,mode,PSU V,PSU I,Load V,Load I,mV1,mV2,mV3,mV4,mV5,mV6,mV7,mV8,mV9,mV10,mV11,mV12,mA\n")
+bms_file.write("time,elapsed,mode,PSU V,PSU I,Load V,Load I,mV1,mV2,mV3,mV4,mV5,mV6,mV7,mV8,mV9,mV10,mV11,mV12,mA,dcc,dmm_v,dmm_i\n")
 bms_file.close()
 
 msg_in = bms.read(bms.in_waiting).decode().strip()
@@ -383,3 +403,6 @@ while(testing):
 
 message = "p\n"
 bms.write(message.encode())
+
+cxp
+
