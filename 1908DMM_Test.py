@@ -106,7 +106,7 @@ DMM1908.write("VDC 10V\n".encode())
 DMM1908.write("IDC2 10A\n".encode())
 
 DMM1908.write("Read?\n".encode())
-time.sleep(0.2)
+#time.sleep(0.2)
 
 received_data = DMM1908.read(DMM1908.in_waiting).decode()
 print(f"Received: {received_data.strip()}")
