@@ -123,7 +123,7 @@ kel103 = KELSerial(load_port)
 kel103.input.off()
 
 DMM1908 = serial.Serial(
-    port='COM8',  # Replace with your serial port (e.g., 'COM1' on Windows)
+    port=dmm_port,  # Replace with your serial port (e.g., 'COM1' on Windows)
     baudrate=9600,
     bytesize=serial.EIGHTBITS,
     parity=serial.PARITY_NONE,
