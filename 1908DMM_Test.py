@@ -111,13 +111,13 @@ DMM1908.write("IDC2 10A\n".encode())
 DMM1908.write("Read?\n".encode())
 while DMM1908.in_waiting < 11:
     time.sleep(0.01)
-received_data = float(DMM1908.read(DMM1908.in_waiting).decode())
+received_data = float(DMM1908.read(DMM1908.in_waiting).decode().strip().split(' ')[0])
 print(received_data)
 
 DMM1908.write("Read2?\n".encode())
 while DMM1908.in_waiting < 11:
     time.sleep(0.01)
-received_data = float(DMM1908.read(DMM1908.in_waiting).decode())
+received_data = float(DMM1908.read(DMM1908.in_waiting).decode().strip().split(' ')[0])
 print(received_data)
 
 DMM1908.close()
