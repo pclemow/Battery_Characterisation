@@ -132,7 +132,7 @@ DMM1908 = serial.Serial(
     timeout=1
 )
 
-DMM1908.write("VDC 10V\n".encode())
+DMM1908.write("VDC 100V\n".encode())
 DMM1908.write("IDC2 10A\n".encode())
 
 measurement_pattern = re.compile('^\\[(\\d{4}\\.\\d, ){11}(\\d{4}\\.\\d)\\] [+-]\\d{6}\\.\\d$')
