@@ -176,6 +176,23 @@ def write_bms_line(s: str, filename, start, mode, psu_v, psu_i, load_v, load_i, 
 
     return bms_stop
 
+def dmm_read():
+    global DMM1908
+
+    DMM1908.write("Read?\n".encode())
+    while DMM1908.in_waiting < 11:
+        time.sleep(0.01)
+    dmm_v = float(DMM1908.read(DMM1908.in_waiting).decode().strip().split(' ')[0])
+    #print(received_data)
+
+    DMM1908.write("Read2?\n".encode())
+    while DMM1908.in_waiting < 11:
+        time.sleep(0.01)
+    dmm_i = float(DMM1908.read(DMM1908.in_waiting).decode().strip().split(' ')[0])
+    #print(received_data)
+
+    return dmm_v, dmm_i
+
 def cccv_charge(ccc_iset, balancing, filename):
     ccc_start = datetime.now()
     mode = "CC Charge"
@@ -214,7 +231,9 @@ def cccv_charge(ccc_iset, balancing, filename):
                         bms.write(("dcc {}\n".format(dcc)).encode())
                         bal_count = 0
                     print(" {}".format(dcc), end="")
-                stop_function = write_bms_line(msg.strip(), filename, ccc_start, mode, psu_v, psu_i, load_v, load_i, dcc, dmm_v, dmm_i)
+                [dmm_v, dmm_i] = dmm_read()
+                stop_function = write_bms_line(msg.strip(), filename, ccd_start, mode, psu_v, psu_i, load_v, load_i,
+                                               dcc, dmm_v, dmm_i)
             elif "Ready" in msg_in:
                 stop_function = 0
                 # print(msg_in)
@@ -258,7 +277,8 @@ def cc_discharge(ccd_iset, balancing, filename):
                         bms.write(("dcc {}\n".format(dcc)).encode())
                         bal_count = 0
                     print(" {}".format(dcc), end="")
-                stop_function = write_bms_line(msg.strip(), filename, ccd_start, mode, psu_v, psu_i, load_v, load_i, dcc)
+                [dmm_v, dmm_i] = dmm_read()
+                stop_function = write_bms_line(msg.strip(), filename, ccd_start, mode, psu_v, psu_i, load_v, load_i, dcc, dmm_v, dmm_i)
             elif "Ready" in msg_in:
                 #print(msg_in)
                 stop_function = 0
@@ -299,7 +319,9 @@ def rest_battery(rest_time, balancing, filename):
                         bms.write(("dcc {}\n".format(dcc)).encode())
                         bal_count = 0
                     print(" {}".format(dcc), end="")
-                stop_function = write_bms_line(msg.strip(), filename, rest_start, mode, psu_v, psu_i, load_v, load_i, dcc)
+                [dmm_v, dmm_i] = dmm_read()
+                stop_function = write_bms_line(msg.strip(), filename, ccd_start, mode, psu_v, psu_i, load_v, load_i,
+                                               dcc, dmm_v, dmm_i)
             elif "Ready" in msg_in:
                 stop_function = 0
                 # print(msg_in)
@@ -374,20 +396,10 @@ while(testing):
 
     if BMS_mainloop == 1:
 
-        #print("Entering CC charge phase")
-        #cccv_charge(ccc_i,1, bms_filename)
-        #print("\nDone with CC charge")
-        #print("Resting")
-        #rest_battery(1800,1, bms_filename)
-        print(datetime.now().strftime("%H:%M:%S"))
-        print("\nEntering CC discharge phase at C/4")
+        print("\nEntering CC discharge phase at C/2" + datetime.now().strftime("%H:%M:%S"))
+        cc_discharge(c_nom/2,1, bms_filename)
+        print("\nEntering CC discharge phase at C/4" + datetime.now().strftime("%H:%M:%S"))
         cc_discharge(c_nom/4,1, bms_filename)
-        print(datetime.now().strftime("%H:%M:%S"))
-        print("\nEntering CC discharge phase at C/8")
-        cc_discharge(c_nom/8,1, bms_filename)
-        print(datetime.now().strftime("%H:%M:%S"))
-        print("\nEntering CC discharge phase at C/16")
-        cc_discharge(c_nom/16,1, bms_filename)
         print("\nDone with CC discharge")
 
         testing = 0
