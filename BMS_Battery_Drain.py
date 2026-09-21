@@ -170,8 +170,8 @@ def write_bms_line(s: str, filename, start, mode, psu_v, psu_i, load_v, load_i, 
                 bms_stop += 2 ** (cell_count - 1)
 
         bmsfile.write(current + ',')
-        bmsfile.write(dcc + ',')
-        bmsfile.write(dmm_v + ',' + dmm_i)
+        bmsfile.write(str(dcc) + ',')
+        bmsfile.write(str(dmm_v) + ',' + str(dmm_i))
         bmsfile.write("\n")
 
     return bms_stop
