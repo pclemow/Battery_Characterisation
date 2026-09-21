@@ -110,9 +110,17 @@ DMM1908.write("IDC2 10A\n".encode())
 
 DMM1908.write("Read?\n".encode())
 time.sleep(0.2)
+print("Received " + DMM1908.in_waiting + "characters")
 
 received_data = DMM1908.read(DMM1908.in_waiting).decode()
-print(f"Received: {received_data.strip()}")
+print(f"Received from 1: {received_data.strip()}")
+
+DMM1908.write("Read2?\n".encode())
+time.sleep(0.2)
+print("Received " + DMM1908.in_waiting + "characters")
+
+received_data = DMM1908.read(DMM1908.in_waiting).decode()
+print(f"Received from 2: {received_data.strip()}")
 
 DMM1908.close()
 print("Serial port closed.")
